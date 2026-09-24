@@ -7,7 +7,13 @@ on:
     branches:
       - main
       - master
+    paths:
+      - "Casks/**"
+      - ".github/workflows/**"
   pull_request:
+    paths:
+      - "Casks/**"
+      - ".github/workflows/**"
   workflow_dispatch:
     inputs:
       casks:
