@@ -4,7 +4,12 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+      day: friday
+      time: '08:00'
+      timezone: Etc/UTC
     groups:
       github-actions:
         patterns:
           - "*"
+    cooldown:
+      default-days: 7
