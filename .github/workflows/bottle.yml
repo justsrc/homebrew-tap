@@ -23,7 +23,9 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      packages: write
     env:
+      HOMEBREW_DEVELOPER: 1
       HOMEBREW_NO_AUTO_UPDATE: 1
     steps:
       - name: Set up Homebrew
@@ -44,12 +46,15 @@ jobs:
         shell: bash
         run: |
           author="$(git log -1 --format=%an)"
-          message="$(git log -1 --format=%s)"
-          if [[ "${author}" == "github-actions[bot]" && "${message}" == "Update bottles for "* ]]; then
+          if [[ "${author}" == "github-actions[bot]" ]]; then
             echo "skip=true" >> "${GITHUB_OUTPUT}"
           else
             echo "skip=false" >> "${GITHUB_OUTPUT}"
           fi
+
+      - name: Install skopeo
+        if: steps.skipper.outputs.skip != 'true'
+        run: brew install skopeo
 
       - name: Run brew test-bot --only-bottles
         if: steps.skipper.outputs.skip != 'true'
@@ -60,31 +65,23 @@ jobs:
             brew test-bot --only-tap --tap=justsrc/homebrew-tap --only-bottles --only-json-tab --skip-dependents
           fi
 
-      - name: Merge bottles
+      - name: Merge and upload bottles
         if: steps.skipper.outputs.skip != 'true'
-        run: brew bottle --merge --write --no-commit ./*.bottle.*.json
-
-      - name: Commit bottles
-        id: commit
-        if: steps.skipper.outputs.skip != 'true'
-        shell: bash
+        env:
+          HOMEBREW_GITHUB_PACKAGES_USER: ${{ github.repository_owner }}
+          HOMEBREW_GITHUB_PACKAGES_TOKEN: ${{ github.token }}
+          HOMEBREW_GIT_NAME: github-actions[bot]
+          HOMEBREW_GIT_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
         run: |
-          if [[ -z "$(git status --porcelain -- Formula/)" ]]; then
-            echo "changed=false" >> "${GITHUB_OUTPUT}"
+          if [[ -z "$(find . -maxdepth 1 -name '*.bottle.json' -print -quit)" ]]; then
+            echo "No bottles were built; nothing to merge or upload."
             exit 0
           fi
-          formula="$(basename "$(printf '%s\n' ./*.bottle.*.json | head -n1)")"
-          formula="${formula%%--*}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula/
-          git commit -m "Update bottles for ${formula}"
-          echo "changed=true" >> "${GITHUB_OUTPUT}"
+          brew pr-upload --warn-on-upload-failure --root-url=https://ghcr.io/v2/justsrc/tap
 
       - name: Push bottles
         if: >
           steps.skipper.outputs.skip != 'true' &&
-          steps.commit.outputs.changed == 'true' &&
           (github.event_name != 'pull_request' ||
            github.event.pull_request.head.repo.full_name == github.repository)
         uses: Homebrew/actions/git-try-push@848c272c7bfe984a197bd4d16383f4c106ec61e6 # 2026.09.21.1
