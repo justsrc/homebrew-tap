@@ -12,15 +12,15 @@ cask "radicle-desktop" do
     regex(%r{href=["']?v?(\d+(?:\.\d+)+)/?["' >]}i)
   end
 
-  depends_on macos: :catalina
   depends_on arch: :arm64
+  depends_on :macos
 
   app "Radicle.app"
 
-  postflight do
-    system_command "/usr/bin/xattr",
-                   args:         ["-rd", "com.apple.quarantine", "#{appdir}/Radicle.app"],
-                   must_succeed: false
+  postflight_steps do
+    run "/usr/bin/xattr",
+        args:         ["-rd", "com.apple.quarantine", "{{appdir}}/Radicle.app"],
+        must_succeed: false
   end
 
   zap trash: [
