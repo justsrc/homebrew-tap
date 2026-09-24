@@ -56,13 +56,13 @@ jobs:
         if: steps.skipper.outputs.skip != 'true'
         run: brew install skopeo
 
-      - name: Run brew test-bot --only-bottles
+      - name: Run brew test-bot --only-formulae
         if: steps.skipper.outputs.skip != 'true'
         run: |
           if [[ -n "${{ inputs.formula }}" ]]; then
-            brew test-bot --only-tap --tap=justsrc/homebrew-tap --only-bottles --only-json-tab --skip-dependents --only-formulae "${{ inputs.formula }}"
+            brew test-bot --only-formulae --tap=justsrc/homebrew-tap --only-json-tab --skip-dependents "${{ inputs.formula }}"
           else
-            brew test-bot --only-tap --tap=justsrc/homebrew-tap --only-bottles --only-json-tab --skip-dependents
+            brew test-bot --only-formulae --tap=justsrc/homebrew-tap --only-json-tab --skip-dependents
           fi
 
       - name: Merge and upload bottles
