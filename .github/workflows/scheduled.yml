@@ -1,0 +1,36 @@
+name: Scheduled online check
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Once every day at 1AM
+    - cron: "0 1 * * *"
+
+concurrency:
+  group: scheduled
+  cancel-in-progress: true
+
+jobs:
+  audit_online:
+    runs-on: macos-26
+    env:
+      HOMEBREW_DEVELOPER: 1
+      CASKS: alacritty mark-text radicle-desktop
+    steps:
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@848c272c7bfe984a197bd4d16383f4c106ec61e6 # 2026.09.21.1
+        with:
+          core: false
+          cask: true
+
+      - name: Check casks for archived sources
+        run: brew audit --cask --online --skip-style --only github_repository_archived,gitlab_repository_archived $CASKS
+
+      - name: Check casks for unavailable homepages
+        run: brew audit --cask --online --skip-style --only homepage $CASKS
+
+      - name: Check casks for missing sources
+        run: brew fetch --cask $CASKS

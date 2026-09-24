@@ -37,6 +37,11 @@ jobs:
         id: git_setup
         uses: Homebrew/actions/git-user-config@848c272c7bfe984a197bd4d16383f4c106ec61e6 # 2026.09.21.1
 
+      - name: Set up commit signing
+        uses: Homebrew/actions/setup-commit-signing@848c272c7bfe984a197bd4d16383f4c106ec61e6 # 2026.09.21.1
+        with:
+          signing_key: ${{ secrets.BREWTESTBOT_SSH_SIGNING_KEY }}
+
       - name: Pull bottles
         id: pull_bottles
         env:
