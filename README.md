@@ -18,8 +18,8 @@ Because third-party Homebrew taps run custom package code on your system, Homebr
 Run the following commands to add the tap and authorize it on your machine:
 
 ```bash
-brew tap justin24506/tap
-brew trust justin24506/tap
+brew tap justsrc/tap
+brew trust justsrc/tap
 ```
 
 ### Step 2: Install a Cask
@@ -35,7 +35,7 @@ brew install --cask <cask-name>
 If you prefer to install it immediately using a fully-qualified name without tapping first, Homebrew will prompt you for trust dynamically:
 
 ```bash
-brew install --cask justin24506/tap/<cask-name>
+brew install --cask justsrc/tap/<cask-name>
 ```
 
 ### Via Brewfile
@@ -43,11 +43,11 @@ brew install --cask justin24506/tap/<cask-name>
 If you manage your software setup via a `Brewfile` using `brew bundle`, add these lines:
 
 ```ruby
-tap "justin24506/tap"
+tap "justsrc/tap"
 cask "<cask-name>"
 ```
 
-*(Note: If running automated bundles, you may need to execute `brew trust justin24506/tap` prior to running `brew bundle` to prevent the installer from skipping it).*
+*(Note: If running automated bundles, you may need to execute `brew trust justsrc/tap` prior to running `brew bundle` to prevent the installer from skipping it).*
 
 ---
 
