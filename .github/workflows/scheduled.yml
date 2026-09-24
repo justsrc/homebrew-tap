@@ -27,10 +27,16 @@ jobs:
           cask: true
 
       - name: Check casks for archived sources
-        run: brew audit --cask --online --skip-style --only github_repository_archived,gitlab_repository_archived $CASKS
+        run: |
+          read -r -a CASKS_ARR <<< "$CASKS"
+          brew audit --cask --online --skip-style --only github_repository_archived,gitlab_repository_archived "${CASKS_ARR[@]}"
 
       - name: Check casks for unavailable homepages
-        run: brew audit --cask --online --skip-style --only homepage $CASKS
+        run: |
+          read -r -a CASKS_ARR <<< "$CASKS"
+          brew audit --cask --online --skip-style --only homepage "${CASKS_ARR[@]}"
 
       - name: Check casks for missing sources
-        run: brew fetch --cask $CASKS
+        run: |
+          read -r -a CASKS_ARR <<< "$CASKS"
+          brew fetch --cask "${CASKS_ARR[@]}"
