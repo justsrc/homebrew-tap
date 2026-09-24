@@ -1,27 +1,30 @@
 name: bottle
 
 on:
-  push:
-    branches: [main]
-    paths: ["Formula/*.rb"]
   pull_request:
     paths: ["Formula/*.rb"]
   workflow_dispatch:
     inputs:
       formula:
-        description: "Formula to bottle (empty = all changed)"
+        description: "Formula to bottle (e.g. fdk-aac)"
         required: false
         type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: "bottle-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+
 jobs:
   bottle:
     runs-on: macos-26
     permissions:
-      contents: read
-      packages: write
+      contents: write
+      pull-requests: write
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
     steps:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@848c272c7bfe984a197bd4d16383f4c106ec61e6 # 2026.09.21.1
@@ -30,9 +33,26 @@ jobs:
           cask: false
 
       - name: Check out tap
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - name: Skip automated bottle commits
+        id: skipper
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          author="$(git log -1 --format=%an)"
+          message="$(git log -1 --format=%s)"
+          if [[ "${author}" == "github-actions[bot]" && "${message}" == "Update bottles for "* ]]; then
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "skip=false" >> "${GITHUB_OUTPUT}"
+          fi
 
       - name: Run brew test-bot --only-bottles
+        if: steps.skipper.outputs.skip != 'true'
         run: |
           if [[ -n "${{ inputs.formula }}" ]]; then
             brew test-bot --only-tap --tap=justsrc/homebrew-tap --only-bottles --only-json-tab --skip-dependents --only-formulae "${{ inputs.formula }}"
@@ -40,31 +60,33 @@ jobs:
             brew test-bot --only-tap --tap=justsrc/homebrew-tap --only-bottles --only-json-tab --skip-dependents
           fi
 
-      - name: Upload bottles
-        uses: actions/upload-artifact@v4
-        with:
-          name: bottles-macos-26
-          path: "*.bottle.*.tar.gz"
-
-  upload:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: bottle
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@848c272c7bfe984a197bd4d16383f4c106ec61e6 # 2026.09.21.1
-
-      - uses: actions/checkout@v7
-
-      - uses: actions/download-artifact@v4
-
       - name: Merge bottles
+        if: steps.skipper.outputs.skip != 'true'
         run: brew bottle --merge --write --no-commit ./*.bottle.*.json
 
-      - name: Push
+      - name: Commit bottles
+        id: commit
+        if: steps.skipper.outputs.skip != 'true'
+        shell: bash
+        run: |
+          if [[ -z "$(git status --porcelain -- Formula/)" ]]; then
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          formula="$(basename "$(printf '%s\n' ./*.bottle.*.json | head -n1)")"
+          formula="${formula%%--*}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/
+          git commit -m "Update bottles for ${formula}"
+          echo "changed=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Push bottles
+        if: >
+          steps.skipper.outputs.skip != 'true' &&
+          steps.commit.outputs.changed == 'true' &&
+          (github.event_name != 'pull_request' ||
+           github.event.pull_request.head.repo.full_name == github.repository)
         uses: Homebrew/actions/git-try-push@848c272c7bfe984a197bd4d16383f4c106ec61e6 # 2026.09.21.1
         with:
-          branch: main
+          branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || 'main' }}
