@@ -5,6 +5,11 @@ class FdkAac < Formula
   sha256 "829b6b89eef382409cda6857fd82af84fabb63417b08ede9ea7a553f811cb79e"
   license "Apache-2.0"
 
+  bottle do
+    root_url "https://github.com/justsrc/homebrew-tap/releases/download/fdk-aac-2.0.3"
+    sha256 cellar: :any, arm64_tahoe: "40082e74349e8cba7c5b309b6a7ec0749357e8bfcc8ba6c1e2b5b7c989bff2e6"
+  end
+
   head do
     url "https://git.code.sf.net/p/opencore-amr/fdk-aac.git", branch: "master"
 
