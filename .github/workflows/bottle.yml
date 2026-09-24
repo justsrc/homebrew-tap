@@ -1,0 +1,70 @@
+name: bottle
+
+on:
+  push:
+    branches: [main]
+    paths: ["Formula/*.rb"]
+  pull_request:
+    paths: ["Formula/*.rb"]
+  workflow_dispatch:
+    inputs:
+      formula:
+        description: "Formula to bottle (empty = all changed)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  bottle:
+    runs-on: xcode-27
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+        with:
+          core: false
+          cask: false
+
+      - name: Check out tap
+        uses: actions/checkout@v7
+
+      - name: Run brew test-bot --only-bottles
+        run: |
+          if [[ -n "${{ inputs.formula }}" ]]; then
+            brew test-bot --only-tap --tap=justsrc/homebrew-tap --only-bottles --only-json-tab --skip-dependents --only-formulae "${{ inputs.formula }}"
+          else
+            brew test-bot --only-tap --tap=justsrc/homebrew-tap --only-bottles --only-json-tab --skip-dependents
+          fi
+
+      - name: Upload bottles
+        uses: actions/upload-artifact@v4
+        with:
+          name: bottles-xcode-27
+          path: "*.bottle.*.tar.gz"
+
+  upload:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: bottle
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v4
+
+      - name: Merge bottles
+        run: brew bottle --merge --write --no-commit *.bottle.*.json
+
+      - name: Push
+        uses: Homebrew/actions/git-try-push@master
+        with:
+          branch: main
