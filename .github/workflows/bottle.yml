@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   bottle:
-    runs-on: xcode-27
+    runs-on: macos-26
     permissions:
       contents: read
       packages: write
@@ -43,7 +43,7 @@ jobs:
       - name: Upload bottles
         uses: actions/upload-artifact@v4
         with:
-          name: bottles-xcode-27
+          name: bottles-macos-26
           path: "*.bottle.*.tar.gz"
 
   upload:
@@ -62,7 +62,7 @@ jobs:
       - uses: actions/download-artifact@v4
 
       - name: Merge bottles
-        run: brew bottle --merge --write --no-commit *.bottle.*.json
+        run: brew bottle --merge --write --no-commit ./*.bottle.*.json
 
       - name: Push
         uses: Homebrew/actions/git-try-push@master
