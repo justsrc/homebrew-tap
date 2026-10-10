@@ -20,6 +20,8 @@ defaults:
 
 env:
   HOMEBREW_DEVELOPER: 1
+  HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   autobump:
@@ -43,9 +45,22 @@ jobs:
         with:
           signing_key: ${{ secrets.BREWTESTBOT_SSH_SIGNING_KEY }}
 
+      - name: Prune stale bump branches
+        run: |
+          # brew bump pushes to bump-<token>-<version> and pushes without
+          # force, so a branch left behind by an earlier run makes the next
+          # one fail on a non-fast-forward push. Closing a bump PR does not
+          # remove its branch.
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=closed&per_page=100" \
+            --jq '.[] | select(.head.ref | startswith("bump-")) | .head.ref' |
+            while read -r branch; do
+              [[ -z "$branch" ]] && continue
+              echo "Deleting stale branch $branch"
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch" || true
+            done
+
       - name: Bump formulae
         env:
-          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_GIT_COMMITTER_NAME: ${{ steps.git_setup.outputs.name }}
           HOMEBREW_GIT_COMMITTER_EMAIL: ${{ steps.git_setup.outputs.email }}
           TAP_NAME: ${{ steps.set-up-homebrew.outputs.tap-name }}
@@ -53,7 +68,6 @@ jobs:
 
       - name: Bump casks
         env:
-          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_GIT_COMMITTER_NAME: ${{ steps.git_setup.outputs.name }}
           HOMEBREW_GIT_COMMITTER_EMAIL: ${{ steps.git_setup.outputs.email }}
           TAP_NAME: ${{ steps.set-up-homebrew.outputs.tap-name }}
