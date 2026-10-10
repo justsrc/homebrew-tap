@@ -1,3 +1,0 @@
-alacritty
-mark-text
-radicle-desktop
