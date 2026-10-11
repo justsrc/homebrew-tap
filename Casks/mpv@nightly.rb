@@ -22,7 +22,9 @@ cask "mpv@nightly" do
   uninstall quit: "io.mpv"
 
   zap trash: [
+    "~/Library/Application Support/CrashReporter/mpv_*.plist",
     "~/Library/Caches/io.mpv",
+    "~/Library/Logs/DiagnosticReports/mpv-*.ips",
     "~/Library/Logs/mpv.log",
     "~/Library/Preferences/io.mpv.plist",
     "~/Library/Preferences/mpv.plist",
