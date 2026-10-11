@@ -7,6 +7,7 @@ A custom Homebrew tap for personal/third-party macOS applications and tools.
 * [**Alacritty**](https://github.com/alacritty/alacritty/) (`alacritty`): GPU-accelerated terminal emulator.
 * [**Radicle**](https://radicle.dev/) (`radicle-desktop`): Desktop client for the Radicle peer-to-peer code collaboration network.
 * [**MarkText**](https://github.com/marktext/marktext) (`mark-text`): Markdown Editor
+* [**mpv**](https://github.com/mpv-player/mpv) (`mpv@nightly`): Open-source video player
 
 ---
 
