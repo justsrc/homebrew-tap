@@ -1,9 +1,9 @@
 cask "mark-text" do
   arch arm: "arm64", intel: "x64"
 
-  version "0.22.0"
-  sha256 arm:   "ae4756d8446867ee927e346bcb67f858539efabf72f7ade24996acb84416fb35",
-         intel: "b0c9567a747c3ec8b4ba7dde60ddf48af05cf231db6657001c6dd0fedfbcf514"
+  version "0.23.0"
+  sha256 arm:   "d7e9ef4fc7c7f353003fc3f34d3a56514a8b05e19298a74ed6ce13c26fe2679f",
+         intel: "2f78980ea1c2fb7deea56a1fd61e97031457443be52631c09a1611cff5f71108"
 
   url "https://github.com/marktext/marktext/releases/download/v#{version}/marktext-mac-#{arch}-#{version}.dmg"
   name "MarkText"
