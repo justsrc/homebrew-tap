@@ -8,6 +8,11 @@ A custom Homebrew tap for personal/third-party macOS applications and tools.
 * [**Radicle**](https://radicle.dev/) (`radicle-desktop`): Desktop client for the Radicle peer-to-peer code collaboration network.
 * [**MarkText**](https://github.com/marktext/marktext) (`mark-text`): Markdown Editor
 * [**mpv**](https://github.com/mpv-player/mpv) (`mpv@nightly`): Open-source video player
+* [**Aegisub**](https://github.com/TypesettingTools/Aegisub/) (`aegisub`): Create and modify subtitles
+* [**Cakebrewjs**](https://sourceforge.net/projects/cakebrewjs/) (`cakebrewjs`): Homebrew GUI app
+* [**Gittyup**](https://murmele.github.io/Gittyup/) (`gittyup`): Graphical Git client
+* [**Koodo Reader**](https://www.koodoreader.com/en) (`koodo-reader`): Open-source e-book reader
+* [**Logisim Evolution**](https://github.com/logisim-evolution/logisim-evolution) (`logisim-evolution`): Digital logic designer and simulator
 
 ---
 
