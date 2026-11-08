@@ -13,6 +13,11 @@ class Tetherkit < Formula
   sha256 "a99d5c8497fa9dc145ebbaf307350a7c9a8b5ae0be638a000f88cb627234690e"
   license "MIT"
 
+  bottle do
+    root_url "https://github.com/justsrc/homebrew-tap/releases/download/tetherkit-0.1.5"
+    sha256 cellar: :any, arm64_tahoe: "288e46ce400e5f4af3aaeba6a299183da2cec397f497d94fa1ccb5dd535dd15c"
+  end
+
   depends_on "cmake" => :build
   # Linked at build time; dylib is embedded into the .app and no longer depends on Homebrew's copy at runtime.
   depends_on "libusb"
