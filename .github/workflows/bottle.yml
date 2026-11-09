@@ -59,10 +59,11 @@ jobs:
       - name: Run brew test-bot --only-formulae
         if: steps.skipper.outputs.skip != 'true'
         run: |
+          root_url="https://ghcr.io/v2/${{ github.repository_owner }}/tap"
           if [[ -n "${{ inputs.formula }}" ]]; then
-            brew test-bot --only-formulae --tap=justsrc/homebrew-tap --only-json-tab --skip-dependents "${{ inputs.formula }}"
+            brew test-bot --only-formulae --tap=justsrc/homebrew-tap --only-json-tab --skip-dependents --root-url="${root_url}" "${{ inputs.formula }}"
           else
-            brew test-bot --only-formulae --tap=justsrc/homebrew-tap --only-json-tab --skip-dependents
+            brew test-bot --only-formulae --tap=justsrc/homebrew-tap --only-json-tab --skip-dependents --root-url="${root_url}"
           fi
 
       - name: Merge and upload bottles
