@@ -6,7 +6,7 @@ class FdkAac < Formula
   license "Apache-2.0"
 
   bottle do
-    root_url "https://github.com/justsrc/homebrew-tap/releases/download/fdk-aac-3.0.0"
+    root_url "https://ghcr.io/v2/justsrc/tap"
     sha256 cellar: :any, arm64_tahoe: "e6a2445ae24606411811c043c061ae2024e4eb34ec89f689a8c753790c033aaf"
   end
 
