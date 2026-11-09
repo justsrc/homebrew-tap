@@ -9,7 +9,7 @@ class TetherkitCli < Formula
   head "https://github.com/XiaoMiku01/TetherKit.git", branch: "main"
 
   bottle do
-    root_url "https://github.com/justsrc/homebrew-tap/releases/download/tetherkit-cli-0.1.5"
+    root_url "https://ghcr.io/v2/justsrc/tap"
     sha256 cellar: :any, arm64_tahoe: "aa2db4137e62d76e819cbe44d72ecfeee4ca13c86e4607b54d7aecf0cb38bed3"
   end
 
