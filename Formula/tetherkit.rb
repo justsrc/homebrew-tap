@@ -14,7 +14,7 @@ class Tetherkit < Formula
   license "MIT"
 
   bottle do
-    root_url "https://github.com/justsrc/homebrew-tap/releases/download/tetherkit-0.1.5"
+    root_url "https://ghcr.io/v2/justsrc/tap"
     sha256 cellar: :any, arm64_tahoe: "288e46ce400e5f4af3aaeba6a299183da2cec397f497d94fa1ccb5dd535dd15c"
   end
 
