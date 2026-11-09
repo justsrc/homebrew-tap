@@ -1,6 +1,6 @@
 cask "radicle-desktop" do
-  version "0.17.0"
-  sha256 "e1362cfbeabd9117f3e8e1a57a886677e70bb3eceb0d8446c5181bc7631eeeb0"
+  version "0.18.0"
+  sha256 "3a2ca1801ab5f4785539d682b4a20cde11e2adfd511319778bf70a4432161266"
 
   url "https://files.radicle.dev/releases/radicle-desktop/#{version}/radicle-desktop-aarch64.dmg"
   name "Radicle"
