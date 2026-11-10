@@ -1,5 +1,5 @@
 cask "mpv@nightly" do
-  version "nightly-61"
+  version "0.42.0-dev-20261109-ga61f6c3ab"
   sha256 :no_check
 
   url "https://github.com/justsrc/mpv-builder/releases/download/nightly/mpv-macos-arm64.zip"
