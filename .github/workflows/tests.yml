@@ -50,7 +50,8 @@
 # from `GITHUB_REPOSITORY` itself, and `brew test-bot` re-trusts it; no
 # additional tap setup steps are required. Formulae named `portable-*` would
 # additionally require Homebrew's ephemeral self-hosted cross-build runners and
-# are not supported here.
+# are not supported here; the runner-determination jobs fail fast if a pull
+# request adds one.
 # - The workflow is named `CI` as upstream homebrew-core (an earlier port had
 #   renamed it `tests`); the cask workflow takes the `Cask CI` name so brew's
 #   rerun cache, which looks up check suites under a workflow literally named
@@ -207,6 +208,17 @@ jobs:
       TESTING_FORMULAE: ${{ needs.formulae_detect.outputs.testing_formulae }}
       DELETED_FORMULAE: ${{ needs.formulae_detect.outputs.deleted_formulae }}
     steps:
+      # Homebrew's ephemeral self-hosted cross-build runners (required by
+      # portable-* formulae) do not exist here, so `determine-test-runners`
+      # would emit a label that queues forever with green setup jobs.
+      - name: Fail fast on unsupported portable formulae
+        run: |
+          if [[ "$TESTING_FORMULAE" =~ (^|,)portable- ]]
+          then
+            echo "::error title=Unsupported portable formulae::This workflow does not support portable-* formulae (see the header notes)."
+            exit 1
+          fi
+
       - name: Set up Homebrew
         id: set-up-homebrew
         uses: Homebrew/actions/setup-homebrew@c262868c096d909fc278daa87ed9772967331ea3 # 2026.11.02.1
@@ -349,6 +361,17 @@ jobs:
       DEPENDENT_SHARDS: ${{ needs.setup_dep_tests.outputs.dependent-shards }}
       TESTING_FORMULAE: ${{ needs.formulae_detect.outputs.testing_formulae }}
     steps:
+      # Homebrew's ephemeral self-hosted cross-build runners (required by
+      # portable-* formulae) do not exist here, so `determine-test-runners`
+      # would emit a label that queues forever with green setup jobs.
+      - name: Fail fast on unsupported portable formulae
+        run: |
+          if [[ "$TESTING_FORMULAE" =~ (^|,)portable- ]]
+          then
+            echo "::error title=Unsupported portable formulae::This workflow does not support portable-* formulae (see the header notes)."
+            exit 1
+          fi
+
       - name: Set up Homebrew
         id: set-up-homebrew
         uses: Homebrew/actions/setup-homebrew@c262868c096d909fc278daa87ed9772967331ea3 # 2026.11.02.1
