@@ -8,6 +8,12 @@ class TethernetCli < Formula
   license "MIT"
   head "https://github.com/justsrc/Tethernet.git", branch: "main"
 
+  bottle do
+    root_url "https://ghcr.io/v2/justsrc/tap"
+    sha256 cellar: :any, arm64_golden_gate: "ccd97703c64aa3df5f1e1eba10ff396c22754b26335233118d9e8bdddf713477"
+    sha256 cellar: :any, arm64_tahoe:       "9b0024a209db1c7f0f00c6718ae17dbc92906e448cc133ac17c91c76208ec97c"
+  end
+
   depends_on "cmake" => :build
   depends_on "libusb"
   # feth(if_fake) + Darwin BPF: macOS exclusive.
