@@ -54,9 +54,12 @@ jobs:
           if [[ -n "$HEAD_SHA" ]]
           then
             brew pr-pull --debug --retain-bottle-dir --tap="$GITHUB_REPOSITORY" --head-sha="$HEAD_SHA" \
+              --workflows=bottle.yml \
               "$PULL_REQUEST"
           else
-            brew pr-pull --debug --retain-bottle-dir --tap="$GITHUB_REPOSITORY" "$PULL_REQUEST"
+            brew pr-pull --debug --retain-bottle-dir --tap="$GITHUB_REPOSITORY" \
+              --workflows=bottle.yml \
+              "$PULL_REQUEST"
           fi
 
       - name: Generate build provenance
