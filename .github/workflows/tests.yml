@@ -190,6 +190,10 @@ jobs:
               deleted_formulae: `${process.env.DELETED_FORMULAE}`
             }
 
+            // homebrew-core parity: errors are logged, not failed. A persistent
+            // API failure leaves every output unset and the run fails closed
+            // downstream (`conclusion` exits 1 with "Unexpected outcome!"),
+            // with the root cause only in this job's log.
             try {
               await script({github, context, core}, formulae_detect, false)
             } catch (error) {
@@ -324,6 +328,10 @@ jobs:
               deleted_formulae: `${process.env.DELETED_FORMULAE}`
             }
 
+            // homebrew-core parity: errors are logged, not failed. A persistent
+            // API failure leaves every output unset and the run fails closed
+            // downstream (`conclusion` exits 1 with "Unexpected outcome!"),
+            // with the root cause only in this job's log.
             try {
               await script({github, context, core}, formulae_detect, true)
             } catch (error) {
