@@ -26,9 +26,12 @@
 # - `HOMEBREW_SORBET_RECURSIVE` dropped from `tap_syntax`: recursive runtime
 #   type-checking is a homebrew-core coverage knob, and `brew test-bot`
 #   disables it for the full-tap `readall`/`audit` steps anyway.
-# - `formulae_detect` skips detection when no formula file changed (upstream
-#   hard-fails `brew test-bot --only-formulae-detect` in that case), because
-#   this tap's pull requests can also touch only casks or workflow files.
+# - `formulae_detect` runs `brew test-bot --only-formulae-detect`
+#   unconditionally, as upstream does: the path filters guarantee formula
+#   changes on every run of this workflow, and detect's hard-fail requires
+#   diff_start == diff_end, which never holds on pull_request merge refs. The
+#   pre-check that guarded it was removed: it ignored git's exit status, so a
+#   broken checkout would have skipped all testing with a green conclusion.
 # - The upstream `Fetch detected formulae bottles` step is removed: brew
 #   populates `formulae_to_fetch` only for `merge_group` runs (removed above),
 #   so the step was unconditionally inert here.
@@ -125,27 +128,8 @@ jobs:
           core: false
           cask: false
 
-      # Skip detection when no formula file changed (e.g. workflow-only pull
-      # requests): `brew test-bot --only-formulae-detect` hard-fails otherwise.
-      # `setup-homebrew` above checked out the pull request's merge commit into
-      # the tap path with full history, so this diff mirrors exactly what the
-      # detection itself would diff.
-      - name: Check for formula changes
-        id: formulae-changed
-        env:
-          BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
-        run: |
-          tap_path="$(brew --repository)/Library/Taps/${GITHUB_REPOSITORY,,}"
-          if [[ -z "$(git -C "${tap_path}" diff --name-only "origin/${BASE_REF}...${GITHUB_SHA}" -- 'Formula/*.rb')" ]]
-          then
-            echo "changed=false" >>"${GITHUB_OUTPUT}"
-          else
-            echo "changed=true" >>"${GITHUB_OUTPUT}"
-          fi
-
       - name: Run brew test-bot --only-formulae-detect
         id: formulae-detect
-        if: steps.formulae-changed.outputs.changed == 'true'
         run: brew test-bot --only-formulae-detect
 
   setup_tests:
