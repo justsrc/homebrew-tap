@@ -1,6 +1,10 @@
 # Configuration for actionlint (https://github.com/rhysd/actionlint).
 # `xcode-27` is the GitHub-hosted macOS 27 (Golden Gate) runner label, which
 # actionlint's built-in list of runner labels does not know about yet.
+# `self-hosted-runner.labels` is actionlint's only mechanism for accepting a
+# label it does not know, so the label is registered here even though the
+# runner is GitHub-hosted. Remove this entry once actionlint's built-in list
+# catches up.
 self-hosted-runner:
   labels:
     - xcode-27
