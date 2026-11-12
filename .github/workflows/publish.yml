@@ -1,4 +1,9 @@
-# brew tap-new uses this file to generate a bottle publish workflow for the new tap
+# Adapted from the Homebrew `brew tap-new` publish template.
+#
+# This is the manual recovery path: `bottle.yml` normally merges and publishes
+# the bottles itself. `brew pr-pull` locates the workflow run by the pull
+# request's head commit, so pass `head_sha` as the commit that ran `bottle.yml`
+# - a commit pushed by the workflow bot does not start a new workflow run.
 name: brew pr-pull
 
 on:
@@ -6,9 +11,12 @@ on:
     inputs:
       pull_request:
         description: Pull request number
+        type: number
         required: true
       head_sha:
         description: Expected pull request head commit SHA (optional)
+        type: string
+        required: false
 
 permissions: {}
 
@@ -26,7 +34,16 @@ jobs:
       contents: write
       id-token: write
       issues: read
+      # `brew pr-upload` pushes the bottles to GitHub Packages.
+      packages: write
       pull-requests: write
+    env:
+      HOMEBREW_DEVELOPER: 1
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      # `brew pr-upload` uploads the bottles to GitHub Packages and needs
+      # credentials for it.
+      HOMEBREW_GITHUB_PACKAGES_USER: ${{ github.repository_owner }}
+      HOMEBREW_GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@c262868c096d909fc278daa87ed9772967331ea3 # 2026.11.02.1
@@ -42,6 +59,8 @@ jobs:
         with:
           signing_key: ${{ secrets.BREWTESTBOT_SSH_SIGNING_KEY }}
 
+      # `setup-homebrew` already links the tap into the Homebrew tap directory
+      # and trusts it (`brew trust justsrc/tap`).
       - name: Pull bottles
         id: pull_bottles
         env:
@@ -54,9 +73,14 @@ jobs:
           if [[ -n "$HEAD_SHA" ]]
           then
             brew pr-pull --debug --retain-bottle-dir --tap="$GITHUB_REPOSITORY" --head-sha="$HEAD_SHA" \
+              --workflows=bottle.yml \
+              --no-cherry-pick \
               "$PULL_REQUEST"
           else
-            brew pr-pull --debug --retain-bottle-dir --tap="$GITHUB_REPOSITORY" "$PULL_REQUEST"
+            brew pr-pull --debug --retain-bottle-dir --tap="$GITHUB_REPOSITORY" \
+              --workflows=bottle.yml \
+              --no-cherry-pick \
+              "$PULL_REQUEST"
           fi
 
       - name: Generate build provenance
