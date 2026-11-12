@@ -14,6 +14,17 @@ A custom Homebrew tap for personal/third-party macOS applications and tools.
 * [**Koodo Reader**](https://www.koodoreader.com/en) (`koodo-reader`): Open-source e-book reader
 * [**Logisim Evolution**](https://github.com/logisim-evolution/logisim-evolution) (`logisim-evolution`): Digital logic designer and simulator
 
+## Available Formulae
+
+* [**Tethernet**](https://github.com/justsrc/Tethernet) (`tethernet`): Userspace RNDIS driver for macOS with a SwiftUI app
+* [**Tethernet CLI**](https://github.com/justsrc/Tethernet) (`tethernet-cli`): Userspace RNDIS driver that exposes USB tethering devices as a macOS NIC
+
+Formulae follow the same tap-and-trust flow and install without the `--cask` flag:
+
+```bash
+brew install <formula-name>
+```
+
 ---
 
 ## Installation
