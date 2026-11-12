@@ -433,6 +433,9 @@ jobs:
       - name: Check `tests` result
         env:
           TESTS_RESULT: ${{ needs.tests.result }}
+          # Exported for visibility only: as in homebrew-core, `conclusion`
+          # keys on the `tests` job alone, so dependent-test failures surface
+          # on the `test_deps` job and are advisory for this required check.
           DEPS_TESTS_RESULT: ${{ needs.test_deps.result }}
           RUNNERS_PRESENT: ${{ needs.setup_runners.outputs.runners_present }}
           SYNTAX_ONLY: ${{ needs.setup_tests.outputs.syntax-only }}
