@@ -10,17 +10,21 @@
 # - `HOMEBREW_MACOS_BUILD_ON_GITHUB_RUNNER: true` is set on the runner
 #   determination jobs so the test matrix selects GitHub-hosted runners
 #   (macos-15, macos-26, xcode-27). Without it, `brew determine-test-runners`
-#   selects the Homebrew org's self-hosted runner labels (e.g.
-#   `sequoia-arm64`), which would queue forever in this repository.
+#   selects the Homebrew org's self-hosted runner labels (e.g. `15-arm64` and
+#   its ephemeral `-<run id>` variants), which would queue forever in this
+#   repository.
 # - The `CI-linux-self-hosted`, `long build` and `long dependent tests` label
 #   plumbing is removed for the same reason: GitHub-hosted runners have fixed
 #   timeouts. `.github/workflows/scripts/check-labels.js` is adapted to match.
 # - `HOMEBREW_NO_INSTALL_FROM_API` is dropped: `Homebrew/actions/setup-homebrew`
 #   clears it for every non-homebrew-core repository, so dependencies always
-#   resolve from the API here (as in bottle.yml). The `core: true` inputs are
-#   therefore `core: false` as well.
-# - `HOMEBREW_ENFORCE_SBOM` dropped: homebrew-core bottle policy, not
-#   applicable to third-party taps.
+#   resolve from the API here (as in bottle.yml). The setup-only jobs omit
+#   `core` deliberately (upstream sets `core: true` because it is
+#   homebrew-core itself); the test jobs still get core and cask because
+#   `Homebrew/actions/pre-build` hardcodes both.
+# - `HOMEBREW_ENFORCE_SBOM` dropped: it is generic brew SBOM enforcement, not a
+#   homebrew-core-only bottle policy, but this tap's bottles do not declare
+#   SBOMs, so enforcement would fail here.
 # - `HOMEBREW_TEST_BOT_ANALYTICS` dropped: this tap is not part of Homebrew's
 #   analytics pipeline.
 # - `HOMEBREW_SORBET_RECURSIVE` dropped from `tap_syntax`: recursive runtime
@@ -46,9 +50,11 @@
 #   are left to `ci.yml` and `actionlint.yml` as well: both this workflow and
 #   `ci.yml` publish a required `conclusion` check, and letting both run here
 #   would make that required status check ambiguous.
-# Note: `Homebrew/actions/setup-homebrew` checks out, links and trusts this tap
-# from `GITHUB_REPOSITORY` itself, and `brew test-bot` re-trusts it; no
-# additional tap setup steps are required. Formulae named `portable-*` would
+# Note: `Homebrew/actions/setup-homebrew` checks out and trusts this tap from
+# `GITHUB_REPOSITORY` itself, and `brew test-bot` re-trusts it; no additional
+# tap setup steps are required. (The action links the tap with a workspace
+# symlink only outside containers; these jobs run in the brew container.)
+# Formulae named `portable-*` would
 # additionally require Homebrew's ephemeral self-hosted cross-build runners and
 # are not supported here; the runner-determination jobs fail fast if a pull
 # request adds one.
@@ -152,8 +158,12 @@ jobs:
     outputs:
       syntax-only: ${{ steps.check-labels.outputs.syntax-only }}
       fail-fast: ${{ steps.check-labels.outputs.fail-fast }}
+      # Unused here: downstream reads this output from `setup_dep_tests`. Kept
+      # for upstream parity with homebrew-core's outputs block.
       test-dependents: ${{ steps.check-labels.outputs.test-dependents }}
       test-bot-formulae-args: ${{ steps.check-labels.outputs.test-bot-formulae-args }}
+      # Unused here: downstream reads this output from `setup_dep_tests`. Kept
+      # for upstream parity with homebrew-core's outputs block.
       test-bot-dependents-args: ${{ steps.check-labels.outputs.test-bot-dependents-args }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -306,6 +316,8 @@ jobs:
       fail-fast: ${{ steps.check-labels.outputs.fail-fast }}
       test-dependents: ${{ steps.check-labels.outputs.test-dependents }}
       dependent-shards: ${{ steps.check-labels.outputs.dependent-shards }}
+      # Unused here: downstream reads this output from `setup_tests`. Kept for
+      # upstream parity with homebrew-core's outputs block.
       test-bot-formulae-args: ${{ steps.check-labels.outputs.test-bot-formulae-args }}
       test-bot-dependents-args: ${{ steps.check-labels.outputs.test-bot-dependents-args }}
     steps:

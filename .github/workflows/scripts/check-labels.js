@@ -30,6 +30,8 @@ module.exports = async ({github, context, core}, formulae_detect, dependent_test
       return
     }
 
+    // Upstream parity: when `dependent_testing` is true, fail-fast is already
+    // false above, so the `CI-no-fail-fast-deps` label is never consulted here.
     if (dependent_testing) {
       core.setOutput('fail-fast', false)
     } else if (label_names.includes(`CI-no-fail-fast${deps_suffix}`)) {
@@ -40,6 +42,9 @@ module.exports = async ({github, context, core}, formulae_detect, dependent_test
       core.setOutput('fail-fast', true)
     }
 
+    // Upstream parity: `!formulae_detect.testing_formulae` keeps upstream's
+    // string truthiness; the call sites in tests.yml guarantee that empty or
+    // unset env values become `''` (never `'undefined'`).
     if (label_names.includes('CI-skip-dependents')) {
       console.log('CI-skip-dependents label found. Skipping brew test-bot --only-formulae-dependents.')
       core.setOutput('test-dependents', false)
