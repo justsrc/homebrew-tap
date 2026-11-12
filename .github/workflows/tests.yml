@@ -29,6 +29,9 @@
 # - `formulae_detect` skips detection when no formula file changed (upstream
 #   hard-fails `brew test-bot --only-formulae-detect` in that case), because
 #   this tap's pull requests can also touch only casks or workflow files.
+# - The upstream `Fetch detected formulae bottles` step is removed: brew
+#   populates `formulae_to_fetch` only for `merge_group` runs (removed above),
+#   so the step was unconditionally inert here.
 # - Triggers are path-filtered to formula files, so cask pull requests are
 #   handled by the cask `ci.yml` workflow instead. Workflow-only pull requests
 #   are left to `ci.yml` and `actionlint.yml` as well: both this workflow and
@@ -144,14 +147,6 @@ jobs:
         id: formulae-detect
         if: steps.formulae-changed.outputs.changed == 'true'
         run: brew test-bot --only-formulae-detect
-
-      - name: Fetch detected formulae bottles
-        if: >
-          contains(github.event.pull_request.labels.*.name, 'CI-published-bottle-commits') &&
-          steps.formulae-changed.outputs.changed == 'true'
-        env:
-          TESTING_FORMULAE: ${{ steps.formulae-detect.outputs.formulae_to_fetch }}
-        run: brew test-bot --only-bottles-fetch --testing-formulae="$TESTING_FORMULAE"
 
   setup_tests:
     permissions:
