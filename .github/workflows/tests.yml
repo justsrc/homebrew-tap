@@ -30,7 +30,10 @@
 #   hard-fails `brew test-bot --only-formulae-detect` in that case), because
 #   this tap's pull requests can also touch only casks or workflow files.
 # - Triggers are path-filtered to formula files, so cask pull requests are
-#   handled by the cask `ci.yml` workflow instead.
+#   handled by the cask `ci.yml` workflow instead. Workflow-only pull requests
+#   are left to `ci.yml` and `actionlint.yml` as well: both this workflow and
+#   `ci.yml` publish a required `conclusion` check, and letting both run here
+#   would make that required status check ambiguous.
 # Note: `Homebrew/actions/setup-homebrew` checks out, links and trusts this tap
 # from `GITHUB_REPOSITORY` itself, and `brew test-bot` re-trusts it; no
 # additional tap setup steps are required. Formulae named `portable-*` would
@@ -45,11 +48,9 @@ on:
       - master
     paths:
       - "Formula/*.rb"
-      - ".github/workflows/**"
   pull_request:
     paths:
       - "Formula/*.rb"
-      - ".github/workflows/**"
 
 env:
   HOMEBREW_DEVELOPER: 1
