@@ -38,6 +38,9 @@
 # - The `tests` job sets `upload-bottles: false`: this tap builds and publishes
 #   bottle commits via `bottle.yml`/`publish.yml`, so CI bottles would be
 #   duplicated (upstream homebrew-core consumes its CI bottles instead).
+# - `test_deps` appends the `-deps` artifact suffix unconditionally: upstream's
+#   Linux-only condition assumes macOS `tests` legs run on self-hosted labels,
+#   while here both jobs share GitHub-hosted labels and would collide.
 # - Triggers are path-filtered to formula files, so cask pull requests are
 #   handled by the cask `ci.yml` workflow instead. Workflow-only pull requests
 #   are left to `ci.yml` and `actionlint.yml` as well: both this workflow and
@@ -417,7 +420,11 @@ jobs:
         if: always()
         uses: Homebrew/actions/post-build@c262868c096d909fc278daa87ed9772967331ea3 # 2026.11.02.1
         with:
-          runner: ${{ case(runner.os == 'Linux', format('{0}-deps', matrix.runner), matrix.runner) }}
+          # Upstream appends `-deps` only on Linux because its macOS `tests`
+          # legs run on self-hosted labels; here both jobs share GitHub-hosted
+          # macOS labels, so the suffix must be unconditional to keep the
+          # artifacts (logs_, dependents_, failed-bottles_) collision-free.
+          runner: ${{ format('{0}-deps', matrix.runner) }}
           cleanup: ${{ matrix.cleanup }}
           bottles-directory: ${{ env.BOTTLES_DIR }}
           logs-directory: ${{ format('{0}/logs', env.BOTTLES_DIR) }}
