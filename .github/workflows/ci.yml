@@ -1,6 +1,9 @@
 # Ported from Homebrew/homebrew-cask's CI workflow (Homebrew/cask/.github/workflows/ci.yml).
 # Note: `merge_group` trigger removed — this repo does not use a merge queue.
-name: CI
+# Note: renamed from `CI` (the homebrew-cask name) so `brew test-bot`'s rerun
+# cache, which looks up check suites under a workflow literally named `CI`,
+# resolves the formula CI workflow unambiguously.
+name: Cask CI
 
 on:
   push:

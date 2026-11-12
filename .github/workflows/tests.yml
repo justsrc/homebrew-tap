@@ -48,7 +48,11 @@
 # additional tap setup steps are required. Formulae named `portable-*` would
 # additionally require Homebrew's ephemeral self-hosted cross-build runners and
 # are not supported here.
-name: tests
+# - The workflow is named `CI` as upstream homebrew-core (an earlier port had
+#   renamed it `tests`); the cask workflow takes the `Cask CI` name so brew's
+#   rerun cache, which looks up check suites under a workflow literally named
+#   `CI`, stays unambiguous.
+name: CI
 
 on:
   push:
