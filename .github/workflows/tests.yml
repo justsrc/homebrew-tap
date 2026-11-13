@@ -50,7 +50,10 @@
 #   upstream: a pull request could in principle edit `check-labels.js` to
 #   weaken its own checks. This is accepted here because fork authors cannot
 #   merge, and any edit to the script is visible in the PR diff for review
-#   at merge time.
+#   at merge time. The same applies to `tests.yml` itself: triggers are
+#   unfiltered, so a pull request that edits this workflow runs its own copy
+#   and controls both the required check's scope and its colour — such pull
+#   requests need careful review.
 # - The `tests` job sets `upload-bottles: false`: this tap builds and publishes
 #   bottle commits via `bottle.yml`/`publish.yml`, so CI bottles would be
 #   duplicated (upstream homebrew-core consumes its CI bottles instead).
@@ -223,7 +226,11 @@ jobs:
             // outputs would reach downstream `fromJson()` consumers as empty
             // strings. The seeds fail safe (`syntax-only: true` skips every
             // testing job); a script that throws mid-run turns this job red
-            // via the rethrow below regardless of the seeds.
+            // via the rethrow below regardless of the seeds. Do not add
+            // `continue-on-error` to this step: with the rethrow neutralised,
+            // the seeds themselves become the false green — a red label
+            // check would skip every testing job and the gate would accept
+            // the skip as designed.
             core.setOutput('syntax-only', 'true')
             core.setOutput('fail-fast', 'true')
             core.setOutput('test-dependents', 'false')
@@ -390,7 +397,11 @@ jobs:
             // outputs would reach downstream `fromJson()` consumers as empty
             // strings. The seeds fail safe (`syntax-only: true` skips every
             // testing job); a script that throws mid-run turns this job red
-            // via the rethrow below regardless of the seeds.
+            // via the rethrow below regardless of the seeds. Do not add
+            // `continue-on-error` to this step: with the rethrow neutralised,
+            // the seeds themselves become the false green — a red label
+            // check would skip every testing job and the gate would accept
+            // the skip as designed.
             core.setOutput('syntax-only', 'true')
             core.setOutput('fail-fast', 'true')
             core.setOutput('test-dependents', 'false')
