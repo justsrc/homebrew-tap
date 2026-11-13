@@ -31,11 +31,12 @@
 #   type-checking is a homebrew-core coverage knob, and `brew test-bot`
 #   disables it for the full-tap `readall`/`audit` steps anyway.
 # - `formulae_detect` runs `brew test-bot --only-formulae-detect`
-#   unconditionally, as upstream does: the path filters guarantee formula
-#   changes on every run of this workflow, and detect's hard-fail requires
-#   diff_start == diff_end, which never holds on pull_request merge refs. The
-#   pre-check that guarded it was removed: it ignored git's exit status, so a
-#   broken checkout would have skipped all testing with a green conclusion.
+#   unconditionally, as upstream does: detect's hard-fail requires
+#   diff_start == diff_end, which never holds on pull_request merge refs (brew
+#   rewrites diff_start to the merge base), so a pull request with no formula
+#   changes exits 0 with empty outputs. The pre-check that guarded it was
+#   removed: it ignored git's exit status, so a broken checkout would have
+#   skipped all testing with a green conclusion.
 # - The upstream `Fetch detected formulae bottles` step is removed: brew
 #   populates `formulae_to_fetch` only for `merge_group` runs (removed above),
 #   so the step was unconditionally inert here.
@@ -45,11 +46,14 @@
 # - `test_deps` appends the `-deps` artifact suffix unconditionally: upstream's
 #   Linux-only condition assumes macOS `tests` legs run on self-hosted labels,
 #   while here both jobs share GitHub-hosted labels and would collide.
-# - Triggers are path-filtered to formula files, so cask pull requests are
-#   handled by the cask `ci.yml` workflow instead. Workflow-only pull requests
-#   are left to `ci.yml` and `actionlint.yml` as well: both this workflow and
-#   `ci.yml` publish a required `conclusion` check, and letting both run here
-#   would make that required status check ambiguous.
+# - Triggers are unfiltered, as upstream: every pull_request gets the full
+#   formula CI graph, and this workflow is the single publisher of the
+#   required `conclusion` check. The cask `ci.yml` workflow triggers on
+#   `Casks/**` only and names its rollup `cask conclusion`, so no pull
+#   request can get two producers of the same required check name (a PR
+#   touching both `Formula/*.rb` and `Casks/**` used to), and pull requests
+#   that touch neither still get a complete required-check set alongside
+#   `actionlint.yml`'s always-on `workflow_syntax`.
 # Note: `Homebrew/actions/setup-homebrew` checks out and trusts this tap from
 # `GITHUB_REPOSITORY` itself, and `brew test-bot` re-trusts it; no additional
 # tap setup steps are required. (The action links the tap with a workspace
@@ -69,11 +73,7 @@ on:
     branches:
       - main
       - master
-    paths:
-      - "Formula/*.rb"
   pull_request:
-    paths:
-      - "Formula/*.rb"
 
 env:
   HOMEBREW_DEVELOPER: 1
