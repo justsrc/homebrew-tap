@@ -63,7 +63,10 @@
 #   `tests`/`test_deps`/`setup_tests`/`setup_runners` and never acts on the
 #   dependent result). The `CI-no-fail-fast-syntax` escape hatch still works:
 #   `continue-on-error` reports a failed `tap_syntax` leg as `success`, so
-#   labelled syntax failures do not block the gate.
+#   labelled syntax failures do not block the gate. A pull request whose
+#   queued formulae match no compatible hosted runner also fails the gate:
+#   passing it green would merge the PR with zero formula testing (upstream
+#   tolerates that; this gate does not).
 # - Triggers are unfiltered, as upstream: every pull_request gets the full
 #   formula CI graph, and this workflow is the single publisher of the
 #   required `conclusion` check. The cask `ci.yml` workflow is likewise
@@ -529,6 +532,7 @@ jobs:
           DEPS_TESTS_RESULT: ${{ needs.test_deps.result }}
           RUNNERS_PRESENT: ${{ needs.setup_runners.outputs.runners_present }}
           SYNTAX_ONLY: ${{ needs.setup_tests.outputs.syntax-only }}
+          TESTING_FORMULAE: ${{ needs.formulae_detect.outputs.testing_formulae }}
         run: |
           # This is the required status check for the formula side, so it must
           # go red whenever any CI job did not behave as designed.
@@ -596,9 +600,24 @@ jobs:
             exit 0
           fi
 
-          # 4. `tests` was skipped: that is only designed when the PR is
-          #    syntax-only or no runners were assigned.
-          if [[ "${SYNTAX_ONLY-}" = "true" || "${RUNNERS_PRESENT-}" = "false" ]]
+          # 4. `tests` was skipped: designed when the PR is syntax-only.
+          if [[ "${SYNTAX_ONLY-}" = "true" ]]
+          then
+            exit 0
+          fi
+
+          # 5. Formulae were queued for testing but the runner matrix assigned
+          #    none: the PR would merge green with zero formula testing.
+          #    Upstream tolerates that; this gate deliberately fails closed.
+          if [[ -n "${TESTING_FORMULAE-}" && "${RUNNERS_PRESENT-}" = "false" ]]
+          then
+            printf '::error ::formulae queued for testing but no compatible runners were assigned: %s\n' "$TESTING_FORMULAE"
+            exit 1
+          fi
+
+          # 6. `tests` skipped with nothing to test (docs-only changes,
+          #    formulae deletions): the skip is designed.
+          if [[ "${RUNNERS_PRESENT-}" = "false" ]]
           then
             exit 0
           fi
