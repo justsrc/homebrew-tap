@@ -8,20 +8,26 @@
 #   covers homebrew-core/homebrew-cask, so the data would be empty or
 #   misleading for this tap's formulae.
 # - `HOMEBREW_MACOS_BUILD_ON_GITHUB_RUNNER: true` is set on the runner
-#   determination jobs so the test matrix selects GitHub-hosted runners
-#   (macos-15, macos-26, xcode-27). Without it, `brew determine-test-runners`
-#   selects the Homebrew org's self-hosted runner labels (e.g. `15-arm64` and
-#   its ephemeral `-<run id>` variants), which would queue forever in this
-#   repository.
+#   determination jobs so the test matrix selects GitHub-hosted runners:
+#   macOS legs on macos-15/macos-26/xcode-27, Linux legs on
+#   ubuntu-24.04-arm/ubuntu-latest (in the ghcr.io/homebrew/brew container).
+#   Without it, `brew determine-test-runners` selects the Homebrew org's
+#   self-hosted runner labels (e.g. `15-arm64` and its ephemeral `-<run id>`
+#   variants), which would queue forever in this repository.
 # - The `CI-linux-self-hosted`, `long build` and `long dependent tests` label
-#   plumbing is removed for the same reason: GitHub-hosted runners have fixed
-#   timeouts. `.github/workflows/scripts/check-labels.js` is adapted to match.
+#   plumbing is removed for the same reason: hosted runners have no
+#   extendable timeouts. Linux legs still request brew's 2160-minute
+#   `GITHUB_ACTIONS_LONG_TIMEOUT`, which GitHub clamps to its 360-minute
+#   hosted-runner job limit; macOS hosted legs already request 360.
+#   `.github/workflows/scripts/check-labels.js` is adapted to match.
 # - `HOMEBREW_NO_INSTALL_FROM_API` is dropped: `Homebrew/actions/setup-homebrew`
 #   clears it for every non-homebrew-core repository, so dependencies always
 #   resolve from the API here (as in bottle.yml). The setup-only jobs omit
 #   `core` deliberately (upstream sets `core: true` because it is
 #   homebrew-core itself); the test jobs still get core and cask because
-#   `Homebrew/actions/pre-build` hardcodes both.
+#   `Homebrew/actions/pre-build` hardcodes both, so every test leg pays a
+#   full clone of homebrew-core and homebrew-cask regardless of these inputs
+#   (inherited from upstream's `pre-build` design).
 # - `HOMEBREW_ENFORCE_SBOM` dropped: it is generic brew SBOM enforcement, not a
 #   homebrew-core-only bottle policy, but this tap's bottles do not declare
 #   SBOMs, so enforcement would fail here.
@@ -40,6 +46,11 @@
 # - The upstream `Fetch detected formulae bottles` step is removed: brew
 #   populates `formulae_to_fetch` only for `merge_group` runs (removed above),
 #   so the step was unconditionally inert here.
+# - The label script is loaded from the pull request checkout itself, as
+#   upstream: a pull request could in principle edit `check-labels.js` to
+#   weaken its own checks. This is accepted here because fork authors cannot
+#   merge, and any edit to the script is visible in the PR diff for review
+#   at merge time.
 # - The `tests` job sets `upload-bottles: false`: this tap builds and publishes
 #   bottle commits via `bottle.yml`/`publish.yml`, so CI bottles would be
 #   duplicated (upstream homebrew-core consumes its CI bottles instead).
@@ -224,7 +235,7 @@ jobs:
       runners_present: ${{ steps.determine-runners.outputs.runners_present }}
     env:
       # This tap has no self-hosted runners: always build the test matrix from
-      # GitHub-hosted runners (macos-15, macos-26, xcode-27).
+      # GitHub-hosted runners (see the header note for the full label list).
       HOMEBREW_MACOS_BUILD_ON_GITHUB_RUNNER: true
       TESTING_FORMULAE: ${{ needs.formulae_detect.outputs.testing_formulae }}
       DELETED_FORMULAE: ${{ needs.formulae_detect.outputs.deleted_formulae }}
