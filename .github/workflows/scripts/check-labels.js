@@ -3,7 +3,10 @@
 // Differences for this tap: it has no self-hosted runners and its test matrix
 // uses GitHub-hosted runners with fixed timeouts, so the `CI-linux-self-hosted`
 // label, the `long build`/`long dependent tests` timeout labels and the
-// `nodejs` output (unused here) are not handled.
+// `nodejs` output (unused here) are not handled. The
+// `CI-published-bottle-commits` label is ignored as well: this workflow has
+// no bottles-fetch step (removed), and treating the label as syntax-only
+// would let a labelled PR go green without any formula tests.
 module.exports = async ({github, context, core}, formulae_detect, dependent_testing) => {
     const deps_suffix = dependent_testing ? '-deps' : ''
 
@@ -15,11 +18,10 @@ module.exports = async ({github, context, core}, formulae_detect, dependent_test
     const label_names = labels.map(label => label.name)
     var syntax_only = false
 
+    // Upstream also treats `CI-published-bottle-commits` as syntax-only here;
+    // this tap ignores it (see the file header).
     if (label_names.includes('CI-syntax-only')) {
       console.log('CI-syntax-only label found. Skipping tests job.')
-      syntax_only = true
-    } else if (label_names.includes('CI-published-bottle-commits')) {
-      console.log('CI-published-bottle-commits label found. Skipping tests job.')
       syntax_only = true
     } else {
       console.log('No CI-syntax-only label found. Running tests job.')
@@ -44,7 +46,9 @@ module.exports = async ({github, context, core}, formulae_detect, dependent_test
 
     // Upstream parity: `!formulae_detect.testing_formulae` keeps upstream's
     // string truthiness; the call sites in tests.yml guarantee that empty or
-    // unset env values become `''` (never `'undefined'`).
+    // unset env values become `''` (never `'undefined'`). Dependent testing
+    // is deliberately keyed on non-empty testing formulae: with none there is
+    // nothing to build dependents for.
     if (label_names.includes('CI-skip-dependents')) {
       console.log('CI-skip-dependents label found. Skipping brew test-bot --only-formulae-dependents.')
       core.setOutput('test-dependents', false)
@@ -112,8 +116,14 @@ module.exports = async ({github, context, core}, formulae_detect, dependent_test
     }
 
     if (label_names.includes('CI-skip-new-formulae-strict')) {
-      console.log('CI-skip-new-formulae-strict label found. Passing --skip-new-strict to brew test-bot.')
+      console.log('CI-skip-new-formulae-strict label found. Passing --skip-new-strict (and its --skip-new dependency) to brew test-bot.')
       test_bot_formulae_args.push('--skip-new-strict')
+      // `--skip-new-strict` is declared with `depends_on: "--skip-new"` in
+      // brew's CLI parser, so it must be passed alongside it or every matrix
+      // leg fails with an OptionConstraintError.
+      if (!test_bot_formulae_args.includes('--skip-new')) {
+        test_bot_formulae_args.push('--skip-new')
+      }
     } else {
       console.log('No CI-skip-new-formulae-strict label found. Not passing --skip-new-strict to brew test-bot.')
     }
