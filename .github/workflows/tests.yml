@@ -201,11 +201,12 @@ jobs:
               deleted_formulae: `${process.env.DELETED_FORMULAE}`
             }
 
-            // Seed every output with a safe default first: if the label script
-            // throws midway, downstream `fromJson()` consumers still receive
-            // valid JSON and the dependent jobs skip cleanly instead of
-            // erroring with poor diagnostics. The seeds fail safe
-            // (`syntax-only: true` skips every testing job).
+            // Seed every output with a safe default first: on the syntax-only
+            // early-return path the script sets only `syntax-only`, and unset
+            // outputs would reach downstream `fromJson()` consumers as empty
+            // strings. The seeds fail safe (`syntax-only: true` skips every
+            // testing job); a script that throws mid-run turns this job red
+            // via the rethrow below regardless of the seeds.
             core.setOutput('syntax-only', 'true')
             core.setOutput('fail-fast', 'true')
             core.setOutput('test-dependents', 'false')
@@ -371,11 +372,12 @@ jobs:
               deleted_formulae: `${process.env.DELETED_FORMULAE}`
             }
 
-            // Seed every output with a safe default first: if the label script
-            // throws midway, downstream `fromJson()` consumers still receive
-            // valid JSON and the dependent jobs skip cleanly instead of
-            // erroring with poor diagnostics. The seeds fail safe
-            // (`syntax-only: true` skips every testing job).
+            // Seed every output with a safe default first: on the syntax-only
+            // early-return path the script sets only `syntax-only`, and unset
+            // outputs would reach downstream `fromJson()` consumers as empty
+            // strings. The seeds fail safe (`syntax-only: true` skips every
+            // testing job); a script that throws mid-run turns this job red
+            // via the rethrow below regardless of the seeds.
             core.setOutput('syntax-only', 'true')
             core.setOutput('fail-fast', 'true')
             core.setOutput('test-dependents', 'false')
