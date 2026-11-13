@@ -57,14 +57,23 @@
 # - `test_deps` appends the `-deps` artifact suffix unconditionally: upstream's
 #   Linux-only condition assumes macOS `tests` legs run on self-hosted labels,
 #   while here both jobs share GitHub-hosted labels and would collide.
+# - The `conclusion` gate is deliberately stricter than upstream: all eight CI
+#   jobs must be green, including `tap_syntax` and the dependent-testing jobs,
+#   whose failures upstream treats as advisory (upstream's rollup only reads
+#   `tests`/`test_deps`/`setup_tests`/`setup_runners` and never acts on the
+#   dependent result). The `CI-no-fail-fast-syntax` escape hatch still works:
+#   `continue-on-error` reports a failed `tap_syntax` leg as `success`, so
+#   labelled syntax failures do not block the gate.
 # - Triggers are unfiltered, as upstream: every pull_request gets the full
 #   formula CI graph, and this workflow is the single publisher of the
-#   required `conclusion` check. The cask `ci.yml` workflow triggers on
-#   `Casks/**` only and names its rollup `cask conclusion`, so no pull
-#   request can get two producers of the same required check name (a PR
-#   touching both `Formula/*.rb` and `Casks/**` used to), and pull requests
-#   that touch neither still get a complete required-check set alongside
-#   `actionlint.yml`'s always-on `workflow_syntax`.
+#   required `conclusion` check. The cask `ci.yml` workflow is likewise
+#   unfiltered (upstream parity) and names its rollup `cask conclusion`, so
+#   no pull request can get two producers of one check name (a PR touching
+#   both `Formula/*.rb` and `Casks/**` used to), `cask conclusion` can be
+#   required without deadlocking PRs that touch no casks (its matrix always
+#   includes tap-syntax legs), and PRs that touch neither still get a
+#   complete required-check set alongside `actionlint.yml`'s always-on
+#   `workflow_syntax`.
 # Note: `Homebrew/actions/setup-homebrew` checks out and trusts this tap from
 # `GITHUB_REPOSITORY` itself, and `brew test-bot` re-trusts it; no additional
 # tap setup steps are required. (The action links the tap with a workspace
