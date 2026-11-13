@@ -18,8 +18,6 @@ module.exports = async ({github, context, core}, formulae_detect, dependent_test
     const label_names = labels.map(label => label.name)
     var syntax_only = false
 
-    // Upstream also treats `CI-published-bottle-commits` as syntax-only here;
-    // this tap ignores it (see the file header).
     if (label_names.includes('CI-syntax-only')) {
       console.log('CI-syntax-only label found. Skipping tests job.')
       syntax_only = true
