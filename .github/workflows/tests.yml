@@ -271,10 +271,6 @@ jobs:
       - name: Determine runners to use for tests job
         id: determine-runners
         run: brew determine-test-runners "$TESTING_FORMULAE" "$DELETED_FORMULAE"
-        env:
-          # As in `setup_dep_runners`: both steps evaluate formula Ruby from
-          # this tap, so both enforce tap trust.
-          HOMEBREW_REQUIRE_TAP_TRUST: 1
 
   tests:
     needs: [tap_syntax, formulae_detect, setup_tests, setup_runners]
