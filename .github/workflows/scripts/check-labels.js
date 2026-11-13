@@ -118,7 +118,11 @@ module.exports = async ({github, context, core}, formulae_detect, dependent_test
       test_bot_formulae_args.push('--skip-new-strict')
       // `--skip-new-strict` is declared with `depends_on: "--skip-new"` in
       // brew's CLI parser, so it must be passed alongside it or every matrix
-      // leg fails with an OptionConstraintError.
+      // leg fails with an OptionConstraintError. Audit effect, per brew's
+      // test_bot/formulae.rb: `--skip-new` alone swaps the `--new` audit for
+      // `--strict`, and with `--skip-new-strict` set as well brew runs no
+      // new-formula audit at all — the strict label drops the plain `--new`
+      // audit as a side effect of the flag pairing.
       if (!test_bot_formulae_args.includes('--skip-new')) {
         test_bot_formulae_args.push('--skip-new')
       }
