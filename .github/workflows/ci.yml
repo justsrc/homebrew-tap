@@ -3,6 +3,11 @@
 # Note: renamed from `CI` (the homebrew-cask name) so `brew test-bot`'s rerun
 # cache, which looks up check suites under a workflow literally named `CI`,
 # resolves the formula CI workflow unambiguously.
+# Note: only `Casks/**` changes trigger this workflow now. Workflow-file pull
+# requests are covered by `actionlint.yml`, and the formula CI workflow
+# publishes the required `conclusion` check on every pull request, so this
+# workflow's rollup is named `cask conclusion` to keep the required check
+# unambiguous on PRs that touch both formulae and casks.
 name: Cask CI
 
 on:
@@ -12,11 +17,9 @@ on:
       - master
     paths:
       - "Casks/**"
-      - ".github/workflows/**"
   pull_request:
     paths:
       - "Casks/**"
-      - ".github/workflows/**"
   workflow_dispatch:
     inputs:
       casks:
@@ -242,7 +245,7 @@ jobs:
         if: always() && steps.snapshot.outcome == 'success' && steps.install.outcome == 'success' && runner.os == 'macOS'
 
   conclusion:
-    name: conclusion
+    name: cask conclusion
     needs: test
     runs-on: ubuntu-slim
     if: always()
