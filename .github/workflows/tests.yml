@@ -591,8 +591,8 @@ jobs:
             # Silence lint error about backtick usage inside single quotes.
             # shellcheck disable=SC2016
             if [[ "$SETUP_RUNNERS_RESULT" != "success" ]] ||
-               [[ "$RUNNERS_PRESENT" != "true" ]] ||
-               [[ "$SYNTAX_ONLY" != "false" ]]
+               [[ "${RUNNERS_PRESENT-}" != "true" ]] ||
+               [[ "${SYNTAX_ONLY-}" != "false" ]]
             then
               printf '::error ::inconsistent state on the `tests` success path.\n'
               exit 1
