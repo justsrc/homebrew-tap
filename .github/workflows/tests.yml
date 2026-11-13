@@ -54,6 +54,11 @@
 # - The `tests` job sets `upload-bottles: false`: this tap builds and publishes
 #   bottle commits via `bottle.yml`/`publish.yml`, so CI bottles would be
 #   duplicated (upstream homebrew-core consumes its CI bottles instead).
+#   `test_deps` correspondingly sets `download-bottles: false`: the `tests`
+#   job uploads no `bottles_*` artifacts, `actions/download-artifact` treats
+#   an empty pattern match as a silent no-op, and `test_deps` rebuilds the
+#   pull request's formulae from source either way — so the upstream-default
+#   `true` was an inert step.
 # - `test_deps` appends the `-deps` artifact suffix unconditionally: upstream's
 #   Linux-only condition assumes macOS `tests` legs run on self-hosted labels,
 #   while here both jobs share GitHub-hosted labels and would collide.
@@ -480,7 +485,7 @@ jobs:
         with:
           bottles-directory: ${{ env.BOTTLES_DIR }}
           cleanup: ${{ matrix.cleanup }}
-          download-bottles: true
+          download-bottles: false
 
       - name: Test dependents
         run: |
