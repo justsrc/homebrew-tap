@@ -725,7 +725,7 @@ jobs:
             while IFS= read -r queued_formula
             do
               [[ -z "$queued_formula" ]] && continue
-              queued_formula="${queued_formula#${tap_name}/}"
+              queued_formula="${queued_formula#"${tap_name}/"}"
               if ! printf '%s\n' "$covered" | grep -Fxq -- "$queued_formula"
               then
                 printf '::error ::formula queued for testing but absent from every runner leg: %s\n' "$queued_formula"
