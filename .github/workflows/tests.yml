@@ -54,27 +54,43 @@
 #   unfiltered, so a pull request that edits this workflow runs its own copy
 #   and controls both the required check's scope and its colour — such pull
 #   requests need careful review.
-# - The `tests` job sets `upload-bottles: false`: this tap builds and publishes
-#   bottle commits via `bottle.yml`/`publish.yml`, so CI bottles would be
-#   duplicated (upstream homebrew-core consumes its CI bottles instead).
-#   `test_deps` correspondingly sets `download-bottles: false`: the `tests`
-#   job uploads no `bottles_*` artifacts, `actions/download-artifact` treats
-#   an empty pattern match as a silent no-op, and `test_deps` rebuilds the
-#   pull request's formulae from source either way — so the upstream-default
-#   `true` was an inert step.
-# - `test_deps` appends the `-deps` artifact suffix unconditionally: upstream's
-#   Linux-only condition assumes macOS `tests` legs run on self-hosted labels,
-#   while here both jobs share GitHub-hosted labels and would collide.
+# - The `tests` job sets `upload-bottles: false` and `test_deps` sets
+#   `download-bottles: false`: this tap builds and publishes bottle commits
+#   via `bottle.yml`/`publish.yml`, so CI bottles would be duplicated
+#   (upstream homebrew-core consumes its CI bottles instead) and no
+#   `bottles_*` artifacts exist. brew's `--only-formulae-dependents` requires
+#   every tested formula to be installed before dependents are tested (it
+#   aborts with "Failed to find bottle" otherwise), so `test_deps` installs
+#   the pull request's tested formulae from source in a dedicated step
+#   before testing dependents; brew then skips each one via
+#   `latest_version_installed?`.
+# - Name-form invariant: every `--testing-formulae`, `--tested-formulae`,
+#   `--added-formulae` and `--deleted-formulae` value is qualified
+#   (`<tap>/<formula>`, e.g. `justsrc/tap/fdk-aac`). `formulae_detect` emits
+#   qualified names; the runner matrix's per-leg names are rewritten to the
+#   qualified form in `setup_runners` (brew emits bare `Formula#name`
+#   values, which Formulary would resolve against the homebrew-core API
+#   when the same bare name exists there).
+# - `test_deps` appends the `-deps` artifact suffix unconditionally, and
+#   makes it shard-unique: upstream's Linux-only condition assumes macOS
+#   `tests` legs run on self-hosted labels, while here both jobs share
+#   GitHub-hosted labels; brew's own shard suffix is a no-op on hosted
+#   labels (`sub("-deps", ...)`) so the shard is appended to the post-build
+#   `runner` input instead (see the `test_deps` post-build step).
 # - The `conclusion` gate is deliberately stricter than upstream: all eight CI
 #   jobs must be green, including `tap_syntax` and the dependent-testing jobs,
 #   whose failures upstream treats as advisory (upstream's rollup only reads
 #   `tests`/`test_deps`/`setup_tests`/`setup_runners` and never acts on the
 #   dependent result). The `CI-no-fail-fast-syntax` escape hatch still works:
 #   `continue-on-error` reports a failed `tap_syntax` leg as `success`, so
-#   labelled syntax failures do not block the gate. A pull request whose
-#   queued formulae match no compatible hosted runner also fails the gate:
-#   passing it green would merge the PR with zero formula testing (upstream
-#   tolerates that; this gate does not).
+#   labelled syntax failures do not block the gate. Two more states fail the
+#   gate: a pull request whose queued formulae match no compatible hosted
+#   runner (runners_present false), and a pull request where a queued
+#   formula is absent from every runner leg's `testing_formulae` (the
+#   coverage union check). Deleting a formula force-activates every runner —
+#   including legs with no formulae — and an incompatible formula is
+#   silently filtered out of every leg, so neither state may pass green
+#   (upstream tolerates both; this gate does not).
 # - Triggers are unfiltered, as upstream: every pull_request gets the full
 #   formula CI graph, and this workflow is the single publisher of the
 #   required `conclusion` check. The cask `ci.yml` workflow is likewise
@@ -256,8 +272,9 @@ jobs:
     container: # zizmor: ignore[unpinned-images]
       image: ghcr.io/homebrew/brew:main
     outputs:
-      runners: ${{ steps.determine-runners.outputs.runners }}
+      runners: ${{ steps.qualify-formula-names.outputs.runners }}
       runners_present: ${{ steps.determine-runners.outputs.runners_present }}
+      covered_formulae: ${{ steps.qualify-formula-names.outputs.covered_formulae }}
     env:
       # This tap has no self-hosted runners: always build the test matrix from
       # GitHub-hosted runners (see the header note for the full label list).
@@ -270,7 +287,7 @@ jobs:
       # would emit a label that queues forever with green setup jobs.
       - name: Fail fast on unsupported portable formulae
         run: |
-          if [[ "$TESTING_FORMULAE" =~ (^|,)portable- ]]
+          if [[ "$TESTING_FORMULAE" =~ (^|,|/)portable- ]]
           then
             echo "::error title=Unsupported portable formulae::This workflow does not support portable-* formulae (see the header notes)."
             exit 1
@@ -286,6 +303,43 @@ jobs:
       - name: Determine runners to use for tests job
         id: determine-runners
         run: brew determine-test-runners "$TESTING_FORMULAE" "$DELETED_FORMULAE"
+
+      # `determine-test-runners` emits bare `Formula#name` values, which
+      # Formulary resolves against the homebrew-core API when the same bare
+      # name exists there (e.g. this tap's `fdk-aac` vs core's `fdk-aac`).
+      # Rewrite every leg's `testing_formulae` to the qualified
+      # `<tap>/<formula>` form so both test matrices feed brew names that can
+      # only resolve to this tap. The canonical tap name is `GITHUB_REPOSITORY`
+      # with `homebrew-` stripped from the repository part
+      # (`justsrc/homebrew-tap` -> `justsrc/tap`). Entries that already
+      # contain a slash are passed through unchanged. The union of qualified
+      # names is also emitted for the `conclusion` gate's coverage check.
+      - name: Qualify per-leg formula names
+        id: qualify-formula-names
+        env:
+          RUNNERS_JSON: ${{ steps.determine-runners.outputs.runners }}
+        run: |
+          tap_name="$(printf '%s' "$GITHUB_REPOSITORY" | sed 's#/homebrew-#/#')"
+          if [[ -z "$RUNNERS_JSON" || "$RUNNERS_JSON" == "[]" ]]
+          then
+            echo "runners=${RUNNERS_JSON:-[]}" >> "$GITHUB_OUTPUT"
+            echo "covered_formulae=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          qualified="$(jq -c --arg tap "$tap_name" '
+            map(.testing_formulae = (
+              if ((.testing_formulae // "") == "") then ""
+              else
+                [(.testing_formulae | split(","))[]
+                  | select(. != "")
+                  | if test("/") then . else ($tap + "/" + .) end]
+                | join(",")
+              end))' <<<"$RUNNERS_JSON")"
+          covered="$(jq -r --arg tap "$tap_name" '
+            [(.[] | .testing_formulae | select(. != "") | split(","))[]]
+            | unique | join(",")' <<<"$qualified")"
+          echo "runners=${qualified}" >> "$GITHUB_OUTPUT"
+          echo "covered_formulae=${covered}" >> "$GITHUB_OUTPUT"
 
   tests:
     needs: [tap_syntax, formulae_detect, setup_tests, setup_runners]
@@ -442,7 +496,7 @@ jobs:
       # would emit a label that queues forever with green setup jobs.
       - name: Fail fast on unsupported portable formulae
         run: |
-          if [[ "$TESTING_FORMULAE" =~ (^|,)portable- ]]
+          if [[ "$TESTING_FORMULAE" =~ (^|,|/)portable- ]]
           then
             echo "::error title=Unsupported portable formulae::This workflow does not support portable-* formulae (see the header notes)."
             exit 1
@@ -498,6 +552,35 @@ jobs:
           cleanup: ${{ matrix.cleanup }}
           download-bottles: false
 
+      # brew's `--only-formulae-dependents` requires every tested formula to
+      # be installed before dependents are determined: it aborts with
+      # "Failed to find bottle" for the first tested formula that is neither
+      # installed nor skipped as tag-incompatible. This workflow builds no CI
+      # bottles (`upload-bottles: false` in `tests`, `download-bottles: false`
+      # here), so install them from source up front and let brew skip each
+      # one via `latest_version_installed?`. Install failures are tolerated:
+      # a formula that cannot be installed on this leg's platform is skipped
+      # by brew's own `compatible_with_tag?` gate, and a compatible formula
+      # that fails to install is still caught by brew's missing-bottle abort,
+      # so the job cannot go green without either an install or a designed
+      # skip.
+      - name: Install tested formulae from source
+        env:
+          TESTED_FORMULAE: ${{ needs.formulae_detect.outputs.testing_formulae }}
+        run: |
+          if [[ -z "$TESTED_FORMULAE" ]]
+          then
+            echo "No formulae to pre-install."
+            exit 0
+          fi
+          IFS=',' read -r -a tested_formulae_array <<< "$TESTED_FORMULAE"
+          for tested_formula in "${tested_formulae_array[@]}"
+          do
+            [[ -z "$tested_formula" ]] && continue
+            brew install --formula "$tested_formula" || \
+              printf '::warning::could not pre-install %s on this leg; brew'"'"'s own compatibility and bottle checks apply.\n' "$tested_formula"
+          done
+
       - name: Test dependents
         run: |
           if [[ -n "$FORMULAE_DEPENDENTS_SHARD" ]]
@@ -521,9 +604,13 @@ jobs:
         with:
           # Upstream appends `-deps` only on Linux because its macOS `tests`
           # legs run on self-hosted labels; here both jobs share GitHub-hosted
-          # macOS labels, so the suffix must be unconditional to keep the
-          # artifacts (logs_, dependents_, failed-bottles_) collision-free.
-          runner: ${{ format('{0}-deps', matrix.runner) }}
+          # macOS labels, so the suffix must be unconditional. It must also be
+          # shard-unique: brew's own shard suffix
+          # (`sub("-deps", "-deps<shard>")`) is a no-op on hosted runner
+          # labels, so with `CI-parallel-dependents` the shard (`2/4` ->
+          # `2-4`) is appended here to keep the artifacts (logs_, dependents_,
+          # failed-bottles_) collision-free.
+          runner: ${{ format('{0}-deps{1}', matrix.runner, replace(matrix.formulae_dependents_shard || '', '/', '-')) }}
           cleanup: ${{ matrix.cleanup }}
           bottles-directory: ${{ env.BOTTLES_DIR }}
           logs-directory: ${{ format('{0}/logs', env.BOTTLES_DIR) }}
@@ -547,6 +634,7 @@ jobs:
           SETUP_DEP_RUNNERS_RESULT: ${{ needs.setup_dep_runners.result }}
           DEPS_TESTS_RESULT: ${{ needs.test_deps.result }}
           RUNNERS_PRESENT: ${{ needs.setup_runners.outputs.runners_present }}
+          COVERED_FORMULAE: ${{ needs.setup_runners.outputs.covered_formulae }}
           SYNTAX_ONLY: ${{ needs.setup_tests.outputs.syntax-only }}
           TESTING_FORMULAE: ${{ needs.formulae_detect.outputs.testing_formulae }}
         run: |
@@ -613,6 +701,25 @@ jobs:
               printf '::error ::inconsistent state on the `tests` success path.\n'
               exit 1
             fi
+
+            # 5b. Every queued formula must be assigned to at least one leg:
+            #     deleting a formula force-activates every runner (including
+            #     legs with no formulae) and incompatible formulae are
+            #     silently filtered out of every leg, so `tests` can succeed
+            #     while a queued formula was never tested. Compare on the
+            #     tap-relative name: matrix legs carry qualified names.
+            tap_name="$(printf '%s' "${GITHUB_REPOSITORY-}" | sed 's#/homebrew-#/#')"
+            covered="$(printf '%s\n' "${COVERED_FORMULAE-}" | tr ',' '\n' | sed "s#^${tap_name}/##" | grep -v '^$' || true)"
+            while IFS= read -r queued_formula
+            do
+              [[ -z "$queued_formula" ]] && continue
+              queued_formula="${queued_formula#${tap_name}/}"
+              if ! printf '%s\n' "$covered" | grep -Fxq -- "$queued_formula"
+              then
+                printf '::error ::formula queued for testing but absent from every runner leg: %s\n' "$queued_formula"
+                exit 1
+              fi
+            done < <(printf '%s\n' "$TESTING_FORMULAE" | tr ',' '\n')
             exit 0
           fi
 
