@@ -1,19 +1,26 @@
 # Ported from Homebrew/homebrew-cask's CI workflow (Homebrew/cask/.github/workflows/ci.yml).
 # Note: `merge_group` trigger removed — this repo does not use a merge queue.
-name: CI
+# Note: renamed from `CI` (the homebrew-cask name) so `brew test-bot`'s rerun
+# cache, which looks up check suites under a workflow literally named `CI`,
+# resolves the formula CI workflow unambiguously.
+# Note: triggers are unfiltered, as upstream, so every pull request gets a
+# `cask conclusion` check (its matrix always includes tap-syntax legs, so it
+# reports even when a PR touches no casks). A pull request that changes Ruby
+# files outside `Casks/`, `cmd/` and `.github/actions/` cannot be inspected
+# by `--url` (generate-cask-ci-matrix odies on "wrong directory" Ruby files),
+# so its matrix falls back to the two-leg syntax-only matrix, as on push; the
+# formula CI workflow covers the formula side. The formula CI workflow
+# publishes the separate required `conclusion` check on every pull request,
+# so this workflow's rollup is named `cask conclusion` to keep the two
+# unambiguous, and it is already a required status check on `main`.
+name: Cask CI
 
 on:
   push:
     branches:
       - main
       - master
-    paths:
-      - "Casks/**"
-      - ".github/workflows/**"
   pull_request:
-    paths:
-      - "Casks/**"
-      - ".github/workflows/**"
   workflow_dispatch:
     inputs:
       casks:
@@ -51,7 +58,7 @@ jobs:
     steps:
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@c262868c096d909fc278daa87ed9772967331ea3 # 2026.11.02.1
+        uses: Homebrew/actions/setup-homebrew@63a2d4d8d4193eab3e62b1b782ff3ab8408f5b29 # 2026.11.09.1
         with:
           core: false
           cask: true
@@ -65,6 +72,25 @@ jobs:
       - name: Run brew config
         run: brew config
 
+      # `generate-cask-ci-matrix --url` odies on a pull request that changes
+      # Ruby files outside `Casks/`, `cmd/` and `.github/actions/` (its
+      # "wrong directory" check), which would red `cask conclusion` on every
+      # formula-only pull request. Fall back to the syntax-only matrix (the
+      # two `tap_syntax` legs, as on push) for those; the formula CI
+      # workflow covers the formula side.
+      - name: Detect Ruby files outside the cask paths
+        id: detect-cask-fallback
+        if: github.event_name == 'pull_request'
+        run: |
+          merge_base="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+          if git diff --name-only "$merge_base" HEAD -- '*.rb' |
+               grep -Ev '^(Casks/|cmd/|\.github/actions/)' | grep -q .
+          then
+            echo "PR_SYNTAX_ONLY_FALLBACK=true" >> "$GITHUB_ENV"
+          else
+            echo "PR_SYNTAX_ONLY_FALLBACK=false" >> "$GITHUB_ENV"
+          fi
+
       - name: Generate CI matrix
         id: generate-matrix
         env:
@@ -74,12 +100,20 @@ jobs:
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]
           then
             # shellcheck disable=SC2086 # $INPUT_CASKS is a space-separated list of cask tokens
-            brew generate-cask-ci-matrix ${{ github.event.inputs.skip_install && '--skip-install' }} ${{ github.event.inputs.new_cask && '--new' }} --casks $INPUT_CASKS
+            brew generate-cask-ci-matrix ${{ inputs.skip_install == true && '--skip-install' || '' }} ${{ inputs.new_cask == true && '--new' || '' }} --casks $INPUT_CASKS
           elif [[ "${GITHUB_EVENT_NAME}" == "push" ]]
           then
             brew generate-cask-ci-matrix --syntax-only
           else
-            brew generate-cask-ci-matrix --url "$PULL_REQUEST_URL"
+            # A pull request with Ruby files outside the cask paths would
+            # make `--url` odie ("Found Ruby files in wrong directory");
+            # run the syntax-only matrix for those instead.
+            if [[ "${PR_SYNTAX_ONLY_FALLBACK-}" == "true" ]]
+            then
+              brew generate-cask-ci-matrix --syntax-only
+            else
+              brew generate-cask-ci-matrix --url "$PULL_REQUEST_URL"
+            fi
           fi
 
   test:
@@ -97,13 +131,15 @@ jobs:
     steps:
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@c262868c096d909fc278daa87ed9772967331ea3 # 2026.11.02.1
+        uses: Homebrew/actions/setup-homebrew@63a2d4d8d4193eab3e62b1b782ff3ab8408f5b29 # 2026.11.09.1
         with:
           core: true
           cask: true
           stable: ${{ matrix.stable || false }}
 
       # setup-homebrew blanks this via $GITHUB_ENV, which overrides workflow `env:`.
+      # Only steps that need it to load the pull request's cask by name keep it.
+      # The rest blank it again in their `env:` so formulae come from the API.
       - name: Disable API installs
         run: echo 'HOMEBREW_NO_INSTALL_FROM_API=1' >> "${GITHUB_ENV}"
 
@@ -121,6 +157,8 @@ jobs:
 
       - name: Clean up CI machine
         if: runner.os == 'macOS' && !matrix.stable
+        env:
+          HOMEBREW_NO_INSTALL_FROM_API: ""
         run: brew test-bot --cleanup --only-cleanup-before
 
       - name: Cache Homebrew Gems
@@ -144,6 +182,8 @@ jobs:
 
       - name: Run brew test-bot --only-tap-syntax
         id: tap-syntax
+        env:
+          HOMEBREW_NO_INSTALL_FROM_API: ""
         run: brew test-bot --tap '${{ matrix.tap }}' --only-tap-syntax ${{ matrix.stable && '--stable' || '' }}
         if: always() && !matrix.cask
 
@@ -157,8 +197,22 @@ jobs:
           contains(fromJSON('["success", "skipped"]'), steps.tap-syntax.outcome) &&
           matrix.cask
 
+      # On xcode-27, anything that starts CoreSimulator (e.g. `brew config`) launches
+      # simdiskimaged, which then unmounts or moves other disk images while re-adding a
+      # duplicate watchOS runtime: "no mountable file systems" or vanishing mount points.
+      # Stop it after `brew config` and before any DMG is opened.
+      # TODO: remove once the xcode-27 runner image no longer needs this.
+      - name: Stop simdiskimaged
+        if: always() && matrix.runner == 'xcode-27' && steps.fetch.outcome == 'success'
+        run: |
+          sudo launchctl disable system/com.apple.CoreSimulator.simdiskimaged || true
+          sudo launchctl bootout system/com.apple.CoreSimulator.simdiskimaged || true
+          sudo pkill -x simdiskimaged || true
+
       - name: Run brew audit --cask${{ (matrix.cask && ' ') || ' --tap ' }}${{ matrix.cask.token || matrix.tap }}
         id: audit
+        env:
+          HOMEBREW_NO_INSTALL_FROM_API: ""
         run: |
           brew audit --cask ${{ join(matrix.audit_args, ' ') }}${{ (matrix.cask && ' ') || ' --tap ' }}'${{ matrix.cask.token && format('{0}/{1}', matrix.tap, matrix.cask.token) || matrix.tap }}'
         timeout-minutes: 30
@@ -172,6 +226,7 @@ jobs:
         id: info
         env:
           CASK_PATH: ${{ matrix.cask.path }}
+          HOMEBREW_NO_INSTALL_FROM_API: ""
           TAP: ${{ matrix.tap }}
         run: |
           tap_cask_path="$(brew --repository "$TAP")/${CASK_PATH#./}"
@@ -204,9 +259,11 @@ jobs:
         run: brew cask-ci snapshot
         if: always() && steps.info.outcome == 'success' && runner.os == 'macOS'
 
-      - name: Run brew install --cask ${{ matrix.cask.token }}
+      - name: Run brew cask-ci install ${{ matrix.cask.token }}
         id: install
-        run: brew install --cask '${{ matrix.tap }}/${{ matrix.cask.token }}'
+        env:
+          HOMEBREW_NO_INSTALL_FROM_API: ""
+        run: brew cask-ci install "$TAP_CASK_PATH"
         if: >
           always() && steps.info.outcome == 'success' &&
           fromJSON(steps.info.outputs.macos_requirement_satisfied) &&
@@ -223,11 +280,15 @@ jobs:
         timeout-minutes: 10
 
       - name: Run brew uninstall --cask ${{ matrix.cask.token }}
+        env:
+          HOMEBREW_NO_INSTALL_FROM_API: ""
         run: brew uninstall --cask '${{ matrix.tap }}/${{ matrix.cask.token }}'
         if: always() && steps.install.outcome == 'success' && !fromJSON(steps.info.outputs.manual_installer)
         timeout-minutes: 30
 
       - name: Uninstall cask dependencies
+        env:
+          HOMEBREW_NO_INSTALL_FROM_API: ""
         run: |
           read -r -a cask_dependencies_array <<< "$CASK_DEPENDENCIES"
           brew uninstall --cask "${cask_dependencies_array[@]}"
@@ -235,11 +296,13 @@ jobs:
         timeout-minutes: 30
 
       - name: Compare installed and running apps and services with snapshot (macOS only)
+        env:
+          HOMEBREW_NO_INSTALL_FROM_API: ""
         run: brew cask-ci check "$TAP_CASK_PATH"
         if: always() && steps.snapshot.outcome == 'success' && steps.install.outcome == 'success' && runner.os == 'macOS'
 
   conclusion:
-    name: conclusion
+    name: cask conclusion
     needs: test
     runs-on: ubuntu-slim
     if: always()
