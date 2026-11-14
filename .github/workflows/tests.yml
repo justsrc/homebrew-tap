@@ -598,6 +598,18 @@ jobs:
           TESTED_FORMULAE: ${{ needs.formulae_detect.outputs.testing_formulae }}
         working-directory: ${{ env.BOTTLES_DIR }}
 
+      # brew's shard value is `<index>/<total>` (`formulae_dependents_shard`:
+      # `2/4`), and `/` is not valid in an artifact name, so slugify it into
+      # the post-build label here (GitHub expressions have no `replace()`).
+      - name: Slugify the shard suffix for post-build
+        if: always()
+        env:
+          FORMULAE_DEPENDENTS_SHARD: ${{ matrix.formulae_dependents_shard || '' }}
+          BASE_RUNNER: ${{ matrix.runner }}
+        run: |
+          shard_slug="$(printf '%s' "$FORMULAE_DEPENDENTS_SHARD" | tr '/' '-')"
+          echo "POST_BUILD_RUNNER=${BASE_RUNNER}-deps${shard_slug}" >> "$GITHUB_ENV"
+
       - name: Steps summary and cleanup
         if: always()
         uses: Homebrew/actions/post-build@63a2d4d8d4193eab3e62b1b782ff3ab8408f5b29 # 2026.11.09.1
@@ -607,10 +619,10 @@ jobs:
           # macOS labels, so the suffix must be unconditional. It must also be
           # shard-unique: brew's own shard suffix
           # (`sub("-deps", "-deps<shard>")`) is a no-op on hosted runner
-          # labels, so with `CI-parallel-dependents` the shard (`2/4` ->
-          # `2-4`) is appended here to keep the artifacts (logs_, dependents_,
-          # failed-bottles_) collision-free.
-          runner: ${{ format('{0}-deps{1}', matrix.runner, replace(matrix.formulae_dependents_shard || '', '/', '-')) }}
+          # labels, so with `CI-parallel-dependents` the slugified shard
+          # (`2/4` -> `2-4`, computed above) is appended to keep the
+          # artifacts (logs_, dependents_, failed-bottles_) collision-free.
+          runner: ${{ env.POST_BUILD_RUNNER || format('{0}-deps', matrix.runner) }}
           cleanup: ${{ matrix.cleanup }}
           bottles-directory: ${{ env.BOTTLES_DIR }}
           logs-directory: ${{ format('{0}/logs', env.BOTTLES_DIR) }}
