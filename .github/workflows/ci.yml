@@ -287,6 +287,8 @@ jobs:
         timeout-minutes: 30
 
       - name: Uninstall cask dependencies
+        env:
+          HOMEBREW_NO_INSTALL_FROM_API: ""
         run: |
           read -r -a cask_dependencies_array <<< "$CASK_DEPENDENCIES"
           brew uninstall --cask "${cask_dependencies_array[@]}"
