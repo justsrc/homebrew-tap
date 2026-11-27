@@ -158,7 +158,7 @@ jobs:
     steps:
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@63a2d4d8d4193eab3e62b1b782ff3ab8408f5b29 # 2026.11.09.1
+        uses: Homebrew/actions/setup-homebrew@ceec4e8419bb3c97ce96e9dda7738499ed5f869d # 2026.11.14.1
         with:
           core: false
           cask: false
@@ -187,7 +187,7 @@ jobs:
     steps:
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@63a2d4d8d4193eab3e62b1b782ff3ab8408f5b29 # 2026.11.09.1
+        uses: Homebrew/actions/setup-homebrew@ceec4e8419bb3c97ce96e9dda7738499ed5f869d # 2026.11.14.1
         with:
           core: false
           cask: false
@@ -295,7 +295,7 @@ jobs:
 
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@63a2d4d8d4193eab3e62b1b782ff3ab8408f5b29 # 2026.11.09.1
+        uses: Homebrew/actions/setup-homebrew@ceec4e8419bb3c97ce96e9dda7738499ed5f869d # 2026.11.14.1
         with:
           core: false
           cask: false
@@ -365,7 +365,7 @@ jobs:
       BOTTLES_DIR: ${{ matrix.workdir || github.workspace }}/bottles
     steps:
       - name: Pre-test steps
-        uses: Homebrew/actions/pre-build@63a2d4d8d4193eab3e62b1b782ff3ab8408f5b29 # 2026.11.09.1
+        uses: Homebrew/actions/pre-build@ceec4e8419bb3c97ce96e9dda7738499ed5f869d # 2026.11.14.1
         with:
           bottles-directory: ${{ env.BOTTLES_DIR }}
           cleanup: ${{ matrix.cleanup }}
@@ -395,7 +395,7 @@ jobs:
 
       - name: Post-build steps
         if: always()
-        uses: Homebrew/actions/post-build@63a2d4d8d4193eab3e62b1b782ff3ab8408f5b29 # 2026.11.09.1
+        uses: Homebrew/actions/post-build@ceec4e8419bb3c97ce96e9dda7738499ed5f869d # 2026.11.14.1
         with:
           runner: ${{ matrix.runner }}
           cleanup: ${{ matrix.cleanup }}
@@ -504,7 +504,7 @@ jobs:
 
       - name: Set up Homebrew
         id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@63a2d4d8d4193eab3e62b1b782ff3ab8408f5b29 # 2026.11.09.1
+        uses: Homebrew/actions/setup-homebrew@ceec4e8419bb3c97ce96e9dda7738499ed5f869d # 2026.11.14.1
         with:
           core: false
           cask: false
@@ -546,7 +546,7 @@ jobs:
       TESTING_FORMULAE: ${{ matrix.testing_formulae }}
     steps:
       - name: Pre-test steps
-        uses: Homebrew/actions/pre-build@63a2d4d8d4193eab3e62b1b782ff3ab8408f5b29 # 2026.11.09.1
+        uses: Homebrew/actions/pre-build@ceec4e8419bb3c97ce96e9dda7738499ed5f869d # 2026.11.14.1
         with:
           bottles-directory: ${{ env.BOTTLES_DIR }}
           cleanup: ${{ matrix.cleanup }}
@@ -612,7 +612,7 @@ jobs:
 
       - name: Steps summary and cleanup
         if: always()
-        uses: Homebrew/actions/post-build@63a2d4d8d4193eab3e62b1b782ff3ab8408f5b29 # 2026.11.09.1
+        uses: Homebrew/actions/post-build@ceec4e8419bb3c97ce96e9dda7738499ed5f869d # 2026.11.14.1
         with:
           # Upstream appends `-deps` only on Linux because its macOS `tests`
           # legs run on self-hosted labels; here both jobs share GitHub-hosted
